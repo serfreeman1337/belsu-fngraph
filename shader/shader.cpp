@@ -78,3 +78,27 @@ unsigned int get_line_shader() {
 	
 	return build_shader(vertexCode, fragmentCode);
 }
+
+unsigned int get_font_shader() {
+	const char *vertexCode = "#version 110\n"
+		"attribute vec2 aPos;\n"
+		"attribute vec3 aColor;\n"
+		"attribute vec2 aTexCoord;\n"
+		"varying vec3 ourColor;\n"
+		"varying vec2 TexCoord;\n"
+		"void main() {\n"
+		"	gl_Position = vec4(aPos, 0.0, 1.0);\n"
+		"	ourColor = aColor;\n"
+		"	TexCoord = vec2(aTexCoord.x, aTexCoord.y);\n"
+		"}\0";
+	const char *fragmentCode = "#version 110\n"
+		"varying vec3 ourColor;\n"
+		"varying vec2 TexCoord;\n"
+		"uniform sampler2D texture1;\n"
+		"uniform sampler2D texture2;\n"
+		"void main() {\n"
+		"	gl_FragColor = vec4(ourColor, texture2D(texture1, TexCoord).a);\n"
+		"}\0";
+	
+	return build_shader(vertexCode, fragmentCode);
+}

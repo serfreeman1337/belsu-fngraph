@@ -3,6 +3,7 @@ CC = g++
 src = $(wildcard *.cpp) \
 	$(wildcard parser/*.cpp) \
 	$(wildcard shader/*.cpp) \
+	$(wildcard text/*.cpp) \
 	$(wildcard axes/*.cpp) \
 	$(wildcard graph/*.cpp)
 obj = $(src:.cpp=.o) build/src/glad.o

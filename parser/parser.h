@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include <iostream>
 #include <queue>
 #include <stack>
+#include <map>
 
 using namespace std;
 
@@ -14,9 +14,8 @@ struct sym_t {
 	float value; // number or function ID 
 };
 
-
-	
 typedef double (*fns_t)(double);
+
 class Parser {
 public:
 	Parser(string str);
@@ -24,6 +23,8 @@ public:
 private:
 	static const fns_t fns[];
 	static const string fns_name[];
+
+	map<char, char> wmap = {{'^', 4}, {'/', 3}, {'*', 2}, {'-', 1}, {'+', 0}};
 
 	queue<sym_t> qu;
 	stack<sym_t> st;

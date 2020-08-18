@@ -1,15 +1,12 @@
 // serfreeman1337 // 24.05.20 //
 
 #include "graph.h"
-
 #include <glad/glad.h>
 
-#include <stdio.h>
-#include <math.h>
-
-using namespace std;
-
-Graph::Graph(string expr, float (*x_range)[2], float (*y_range)[2], float *x_dist, float *y_dist, unsigned int shader) {
+Graph::Graph(string expr,
+	float (*x_range)[2], float (*y_range)[2], 
+	float *x_dist, float *y_dist,
+	unsigned int shader) {
 	this->parser = new Parser(expr);
 	
 	// set pointers
@@ -22,9 +19,16 @@ Graph::Graph(string expr, float (*x_range)[2], float (*y_range)[2], float *x_dis
 	glGenBuffers(1, &VBO);
 }
 
+Graph::~Graph() {
+	glDeleteBuffers(1, &VBO);
+}
+
 void Graph::rebuild() {
-	vector<array<float, 2>> d;
-	build(&d);
+	d.clear();
+	d.shrink_to_fit();
+
+	build();
+
 	vbo_size = d.size();
 
 	// hora hora kimi no yume mo 
@@ -35,7 +39,7 @@ void Graph::rebuild() {
 	// kimi no namae mo arekore naku natta
 
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, vbo_size * (2 * sizeof(float)), &d.front(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, vbo_size * sizeof(GraphVertex), &d[0], GL_STATIC_DRAW);
 }
 
 void Graph::draw() {
@@ -59,7 +63,7 @@ void Graph::draw() {
 	}
 }
 
-void Graph::build(std::vector<std::array<float, 2>> *d) {
+void Graph::build() {
 	float step = 0.015;
 
 	for (float x = (*x_range)[0], y; x <= (*x_range)[1]; x += step) {
@@ -70,7 +74,7 @@ void Graph::build(std::vector<std::array<float, 2>> *d) {
 		float xp = ((x - (*x_range)[0]) * (1.0 / *x_dist) * 2.0) - 1.0;
 		float yp = ((y - (*y_range)[0]) * (1.0 / *y_dist) * 2.0) - 1.0;
 		
-		d->push_back({xp, yp});
+		d.push_back({xp, yp});
 
 		// printf("-[G]-> x: %lf, y: %lf\n", xp, yp);
 		

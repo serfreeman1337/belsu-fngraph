@@ -2,14 +2,8 @@
 
 #include "parser.h"
 
-#include <iostream>
-
 #include <algorithm> // find, distance
 #include <math.h>
-
-#include <stack>
-#include <queue>
-#include <map>
 
 using namespace std;
 
@@ -193,10 +187,10 @@ float Parser::evaluate(float x) {
 	
 	// karekore naku natta 
 
-	// cout << "\n" << st.size() << "\n";
-	// cout << "\n";
-	
-	return st.top().value;
+	float val = st.top().value;
+	st.pop();
+
+	return val;
 }
 
 void Parser::process_input(string s) {
@@ -227,8 +221,6 @@ void Parser::process_input(string s) {
 }
 
 bool Parser::is_higher_operator(char operator1, char operator2) {
-	static map<char, char> wmap = {{'^', 4}, {'/', 3}, {'*', 2}, {'-', 1}, {'+', 0}};
-
 	if (wmap.count(operator1) == 0 || wmap.count(operator2) == 0) return false;
 
 	return wmap[operator1] > wmap[operator2];

@@ -2,6 +2,7 @@
 
 #include "axes/axes.h"
 #include "graph/graph.h"
+#include "text/text.h"
 #include "shader/shader.h"
 
 #include <glad/glad.h>
@@ -14,13 +15,17 @@
 float x_range[2], y_range[2], x_dist, y_dist;
 
 Axes *axes;
+Text *text;
 vector<Graph*> graphs;
 
-void rebuild() {
+void rebuild(GLFWwindow *window) {
 	x_dist = x_range[1] - x_range[0];
 	y_dist = y_range[1] - y_range[0];
 
+	text->clear();
+
 	axes->rebuild();
+
 	for (auto graph : graphs) {
 		graph->rebuild();
 	}
@@ -30,16 +35,19 @@ void display(GLFWwindow *window) {
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	axes->draw();
+	
 	for (auto graph : graphs) {
 		graph->draw();
 	}
+
+	text->draw();
 
 	glfwSwapBuffers(window);
 }
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
-	// printf("Resizing [%d,%d]\n", width, height);
 	glViewport(0, 0, width, height);
+	rebuild(window);
 }
 
 void window_refresh_callback(GLFWwindow *window) {
@@ -84,7 +92,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 			y_range[1] += move_y;
 		}
 
-		rebuild();
+		rebuild(window);
 		display(window);
 	}
 
@@ -96,7 +104,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 			y_range[0] -= 1.0;
 			y_range[1] += 1.0;
 
-			rebuild();
+			rebuild(window);
 			display(window);
 		}
 		else if (key == GLFW_KEY_KP_SUBTRACT) {
@@ -106,7 +114,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 			y_range[0] += 1.0;
 			y_range[1] -= 1.0;
 
-			rebuild();
+			rebuild(window);
 			display(window);
 		}
 	}
@@ -130,7 +138,7 @@ void cursor_position_callback(GLFWwindow *window, double xpos, double ypos){
 	y_range[0] += normalizedY;
 	y_range[1] += normalizedY;
 
-	rebuild();
+	rebuild(window);
 
 	// printf("->POS-> %lf,%lf [%lf,%lf] [%lf,%lf]\n", xpos, ypos, diff_x, diff_y, normalizedX, normalizedY);
 
@@ -165,7 +173,7 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
 		y_range[1] *= 1.5;
 	}
 
-	rebuild();
+	rebuild(window);
 	display(window);
 }
 
@@ -202,26 +210,28 @@ void init_render(string str) {
 	}
 	glViewport(0, 0, 400, 400);
 
-	// 
-	x_range[0] = y_range[0] = -1.0f;
-	x_range[1] = y_range[1] = 1.0f;
+	text = new Text(window);
 
-	unsigned int shader = get_line_shader();
-	axes = new Axes(&x_range, &y_range, &x_dist, &y_dist, shader);
-	
+	// 
+	x_range[0] = y_range[0] = -10.0f;
+	x_range[1] = y_range[1] = 10.0f;
+
+	unsigned int line_shader = get_line_shader();
+	axes = new Axes(window, text, line_shader, &x_range, &y_range, &x_dist, &y_dist);
+
 	string delim = ",";
 	auto start = 0U;
 	auto end = str.find(delim);
 	while (end != string::npos) {
-		graphs.push_back(new Graph(str.substr(start, end - start), &x_range, &y_range, &x_dist, &y_dist, shader));
+		graphs.push_back(new Graph(str.substr(start, end - start), &x_range, &y_range, &x_dist, &y_dist, line_shader));
 		
 		start = end + delim.length();
 		end = str.find(delim, start);
 	}
 	
-	graphs.push_back(new Graph(str.substr(start, end), &x_range, &y_range, &x_dist, &y_dist, shader));
+	graphs.push_back(new Graph(str.substr(start, end), &x_range, &y_range, &x_dist, &y_dist, line_shader));
 
-	rebuild();
+	rebuild(window);
 
 	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 	while (!glfwWindowShouldClose(window)) {
