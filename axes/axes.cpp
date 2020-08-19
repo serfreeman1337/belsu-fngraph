@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <cstring>
 
+#define VALUE_TO_GLPLANE(val, range, dist) ((val - (*range)[0]) * (1.0 / *dist) * 2.0) - 1.0
+
 Axes::Axes(GLFWwindow *window, Text *text, unsigned int shader,
 	float (*x_range)[2], float (*y_range)[2], float *x_dist, float *y_dist
 ) {
@@ -28,6 +30,11 @@ void Axes::rebuild() {
 
 	calculate_step(false);
 	calculate_step(true);
+
+	build_axis(true);
+	build_axis(false);
+
+	vbo_axes_size = d.size();
 
 	build(false);
 	build(true);
@@ -55,10 +62,41 @@ void Axes::draw() {
 	glUseProgram(shader);
 
 	if (vbo_size) {
+
+		if (vbo_axes_size) {
+			glLineWidth(1.8f);
+			glUniform3f(color, 0.1f, 0.5f, 1.0f);
+			glDrawArrays(GL_LINES, 0, vbo_axes_size);
+		}
+
 		glLineWidth(1.0f);
 		glUniform3f(color, 1.0f, 0.5f, 0.2f);
+		glDrawArrays(GL_LINES, vbo_axes_size, vbo_size - vbo_axes_size);
+	}
+}
 
-		glDrawArrays(GL_LINES, 0, vbo_size);
+void Axes::build_axis(bool is_y) {
+	float(*o_range)[2], *o_dist;
+
+	if (is_y) {
+		o_range = x_range;
+		o_dist = x_dist;
+	} else {
+		o_range = y_range;
+		o_dist = y_dist;
+	}
+
+	float off = VALUE_TO_GLPLANE(0, o_range, o_dist);
+
+	if (off >= 1.0) return; // axis out of view
+
+	// axis lines
+	if (is_y){
+		d.push_back({off, 1.0f});
+		d.push_back({off, -1.0f});
+	} else {
+		d.push_back({-1.0f, off});
+		d.push_back({1.0f, off});
 	}
 }
 
@@ -83,74 +121,25 @@ void Axes::build(bool is_y) {
 		o_dist = y_dist;
 	}
 
-	// printf("[axis%d] %lf->%lf, step: %g\n",
-	// 	   is_y, (*range)[0], (*range)[1], step);
+	// calculate marker offset
+	float m_offset = get_step_offset(step, is_y);
 
 	// calculate offset from point 0
-	float off = (-(*o_range)[0] * (1.0 / *o_dist) * 2.0) - 1.0;
+	float off = VALUE_TO_GLPLANE(0, o_range, o_dist);
+	bool is_in = false;
 
-	if (fabs(off) >= 1.0)
-		return;
+	if (fabs(off) < 1.0)
+		is_in = true; // axis is in the view
 
-	// axis lines
-	if (is_y) {
-		d.push_back({off, 1.0f});
-		d.push_back({off, -1.0f});
-	}
-	else {
-		d.push_back({-1.0f, off});
-		d.push_back({1.0f, off});
-	}
-
-	// calculate marker offset
-	float m_offset;
-
-	modf((*range)[0], &m_offset); // start placing markers from round integer
-
-	// calculate nearest marker step
-	// TODO: find better method ?
-
-	if (step <= 1.0) {
-		if ((*range)[0] >= 0.0) {
-			while (m_offset < (*range)[0]) {
-				m_offset += step;
-			}
-		} else {
-			while (m_offset > (*range)[0] + step) {
-				m_offset -= step;
-			}
-		}
-	} else {
-		int i_offset = static_cast<int>(m_offset);
-		int i_step = static_cast<int>(step);
-
-		if ((*range)[0] >= 0.0) {
-			while (m_offset < (*range)[0] || i_offset % i_step != 0) {
-				i_offset += 1;
-				m_offset += 1.0;
-			}
-		} else {
-			while (i_offset % i_step != 0) {
-				i_offset += 1;
-				m_offset += 1.0;
-			}
-		}
-	}
-
-	m_offset -= (*range)[0];
-
-	float text_color[3] = {1.0f, 0.5f, 0.2f};
-
+	float text_color[3] = {1.0f, 1.0f, 1.0f};
 	// markers !!!
 	for (float m_val = ((*range)[0] + m_offset), x_pos, y_pos, text_x, text_y; 
 		m_val <= (*range)[1]; 
 		m_val += step
 	) {
 		// marker position on screen !!!
-		x_pos = ((m_val - (*range)[0]) * (1.0 / *dist) * 2.0) - 1.0;
+		x_pos = VALUE_TO_GLPLANE(m_val, range, dist);
 		y_pos = 0.02;
-
-		// printf("-> v: %lf, x: %lf\n", m_val, xp);
 
 		if (x_pos <= -1.0) { // hack: fix displaying on screen edges;
 			x_pos = -0.9999;
@@ -158,11 +147,21 @@ void Axes::build(bool is_y) {
 		else if (x_pos >= 1.0) {
 			x_pos = 0.9999;
 		}
+		
+		// TODO: fix ?
+		m_val = round(m_val * 10000.0) / 10000.0;
+
+		if (m_val == 0.0) {
+			if (!is_y) // print ZERO
+				text->printNum(x_pos - 0.05, (-y_pos + off - 0.04), text_color, 0.5, m_val, !is_y);
+
+			continue; // don't draw on axis
+		}
 
 		if (is_y) { // just turn around 90* degrees :D
 			// marker from left to right
-			d.push_back({-y_pos + off, x_pos});
-			d.push_back({y_pos + off, x_pos});
+			d.push_back({-1.0, x_pos});
+			d.push_back({1.0, x_pos});
 
 			// set text position
 			text_x = -y_pos + off - 0.02;
@@ -170,23 +169,16 @@ void Axes::build(bool is_y) {
 		}
 		else {
 			// from up to down
-			d.push_back({x_pos, y_pos + off});
-			d.push_back({x_pos, -y_pos + off});
+			d.push_back({x_pos, 1.0});
+			d.push_back({x_pos, -1.0});
 
 			// set text position
 			text_x = x_pos;
 			text_y = -y_pos + off - 0.04;
 		}
 
-		// TODO: fix ?
-		m_val = round( m_val * 10000.0 ) / 10000.0;
-
-		if (m_val == 0.0) {
-			if (!is_y) {
-				continue;
-			}
-
-			text_y -= 0.06;
+		if (!is_in) { // only draw values on axis in view
+			continue;
 		}
 
 		text->printNum(text_x, text_y, text_color, 0.5, m_val, !is_y);
@@ -264,4 +256,51 @@ void Axes::calculate_step(bool is_y) {
 			if (cur_step == 5) cur_step = 0;
 		}
 	}
+}
+
+// return offset to start step on graph range
+float Axes::get_step_offset(float step, bool is_y) {
+	float(*range)[2], *dist;
+
+	if (is_y) {
+		range = y_range;
+	}
+	else {
+		range = x_range;
+	}
+
+	// calculate offset
+	float m_offset;
+	modf((*range)[0], &m_offset); // start from round integer
+
+	if (step <= 1.0) { // it just works for any step <= 1.0!
+		if ((*range)[0] >= 0.0) {
+			while (m_offset < (*range)[0]) {
+				m_offset += step;
+			}
+		} else {
+			while (m_offset > (*range)[0] + step) {
+				m_offset -= step;
+			}
+		}
+	} else { // and this works too :D
+		int i_offset = static_cast<int>(m_offset);
+		int i_step = static_cast<int>(step);
+
+		if ((*range)[0] >= 0.0) {
+			while (m_offset < (*range)[0] || i_offset % i_step != 0) {
+				i_offset += 1;
+				m_offset += 1.0;
+			}
+		} else {
+			while (i_offset % i_step != 0) {
+				i_offset += 1;
+				m_offset += 1.0;
+			}
+		}
+	}
+
+	m_offset -= (*range)[0];
+
+	return m_offset;
 }

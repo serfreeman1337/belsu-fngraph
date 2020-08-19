@@ -16,8 +16,6 @@ int main() {
 		
 		init_render(s);
 	}
-	
-	
-	
+
 	return 0;
 }

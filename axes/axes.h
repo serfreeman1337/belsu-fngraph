@@ -3,7 +3,6 @@
 #pragma once
 
 #include <vector>
-
 #include "../text/text.h"
 
 using namespace std;
@@ -28,13 +27,17 @@ private:
 
 	unsigned int VBO;
 	unsigned int vbo_size;
+	unsigned int vbo_axes_size;
 
 	float (*x_range)[2], (*y_range)[2];
 	float *x_dist, *y_dist;
 	float x_step, y_step;
 
 	std::vector<AxesVertex> d;
+	std::vector<AxesVertex> a;
 
 	void build(bool is_y);
+	void build_axis(bool is_y);
 	void calculate_step(bool is_y);
+	float get_step_offset(float step, bool is_y);
 };
